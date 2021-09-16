@@ -156,10 +156,10 @@ avg_word_length_df <- words_df %>%
 
 ```
 
-# Sentiment analysis
 
+## Sentiment analysis
 
-## Overall sentiment average and variance
+### Overall sentiment average and variance
 
 ```{r}
 afinn_dict <- get_sentiments("afinn")
@@ -174,6 +174,30 @@ sentiment_df <- words_df %>%
 head(sentiment_df)
 ```
 
+### Swear words
+
+```{r}
+# Download dictionary of swear words
+download.file("https://www.freewebheaders.com/download/files/base-list-of-bad-words_text-file_2021_01_18.zip", "swear.zip")
+unzip("swear.zip")
+
+swear_words <- readLines("base-list-of-bad-words_text-file_2021_01_18.txt") %>%
+  tibble(word = .) %>% 
+  # Select only lines with a single word
+  filter(!grepl("\\W+", word), word != "") 
+
+swear_df <- words_df %>%
+  semi_join(swear_words, by = "word") %>%
+  count(vlogId) %>%
+  rename(swear_words = n) %>%
+  # Join with gender to add vloggs without swear words
+  right_join(gender_df, by = "vlogId") %>% 
+  replace_na(list(swear_words = 0)) %>%
+  select(vlogId, swear_words)
+
+head(swear_df)
+```
+
 # Merge all features into `vlogger_df`
 
 - This is the list of features included in our models
@@ -183,7 +207,8 @@ head(sentiment_df)
 vlogger_df <- left_join(gender_df, pers_df, by = "vlogId") %>%
   left_join(i_we_df, by = "vlogId") %>%
   left_join(avg_word_length_df, by = "vlogId") %>%
-  left_join(sentiment_df, by = "vlogId")
+  left_join(sentiment_df, by = "vlogId") %>% 
+  left_join(swear_df, by = "vlogId")
 
 head(vlogger_df)
 ```
@@ -211,7 +236,6 @@ sapply(summary(model), function(x) x$r.squared)
 ```{r}
 testset <- vlogger_df %>% 
   filter(is.na(Extr))
-
 head(testset)
 ```
 
@@ -219,14 +243,12 @@ head(testset)
 
 ```{r}
 predictions <- predict(model, newdata = testset)
-
-# Always check the output
 head(predictions)
 ```
 
 
 ```{r}
-# compute output data frame
+# Compute output data frame
 output <- testset %>% 
   mutate(
     Extr = predictions[,'Extr'], 
