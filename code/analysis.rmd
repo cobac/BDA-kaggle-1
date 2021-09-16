@@ -1,0 +1,304 @@
+---
+title: An R Markdown document converted from "quickstart-vlogger-personality-competition-2021.ipynb"
+output: html_document
+---
+
+```{r}
+# This R environment comes with all of CRAN and many other helpful packages preinstalled.
+# You can see which packages are installed by checking out the kaggle/rstats docker image: 
+# https://github.com/kaggle/docker-rstats
+
+library(tidyverse) # metapackage with lots of helpful functions
+library(tidytext)
+
+# Input data files are available in the read-only "../input/" directory
+# For example, running this cell (by clicking ▶️, run or pressing Shift+Enter) will list 
+# all files under the "../input/" directory
+
+list.files(path = "../input/")
+
+# You can write up to 5GB to the current directory (/kaggle/working/) that gets preserved 
+# as output when you create a version using "⟳ Save & Run All". From the resulting output
+# section in the Viewer you can submit an output file as your entry to the competition.
+# You can also write temporary files to /kaggle/temp/, but they won't be saved outside of 
+# the current session
+```
+
+There are three .csv files in the directory structure:
+
+```{r}
+directory_content = list.files("../input/bda2021big5/youtube-personality", full.names = TRUE)
+
+print(directory_content)
+```
+
+In addition there's a "transcript" folder (see number \[2\] in the output above) in which the actual video transcripts are stored in `.txt` files. 
+
+Store these file paths in variables for easy reference later on:
+
+```{r}
+# Path to the transcripts directory with transcript .txt files
+path_to_transcripts = directory_content[2] 
+
+# .csv filenames (see output above)
+AudioVisual_file    = directory_content[3]
+Gender_file         = directory_content[4]
+Personality_file    = directory_content[5]
+```
+
+# 1. Import the data
+
+We'll import
+
+- Transcripts
+- Personality scores
+- Gender
+
+## 1.1 Importing transcripts
+
+The transcript text files are stored in the subfolder 'transcripts'. They can be listed with the following commands:
+
+```{r}
+transcript_files = list.files(path_to_transcripts, full.names = TRUE) 
+
+print(head(transcript_files))
+```
+
+The transcript file names encode the vlogger ID that you will need for joining information from the different data frames. A clean way to extract the vlogger ID's from the names is by using the funcation `basename()` and removing the file extension ".txt".
+
+```{r}
+vlogId = basename(transcript_files)
+vlogId = str_replace(vlogId, pattern = ".txt$", replacement = "")
+head(vlogId)
+```
+
+To include features extracted from the transcript texts you will have to read the text from files and store them in a data frame. For this, you will need the full file paths as stored in `transcript_files`.
+
+Here are some tips to do that programmatically
+
+- use either a `for` loop, the `sapply()` function, or the `map_chr()` from the `tidyverse`
+- don't forget to also store `vlogId` extracted with the code above 
+
+We will use the `map_chr()` function here:
+
+```{r}
+transcripts_df = tibble(
+    
+    # vlogId connects each transcripts to a vlogger
+    vlogId=vlogId,
+    
+    # Read the transcript text from all file and store as a string
+    Text = map_chr(transcript_files, ~ paste(readLines(.x), collapse = "\\n")), 
+    
+    # `filename` keeps track of the specific video transcript
+    filename = transcript_files
+)
+```
+
+```{r}
+transcripts_df %>% 
+    head(2)
+```
+
+## Import personality scores
+
+The other data files can be read in with `read_delim` (not `read_csv` because the files are not actually comma separated). For instance, the following should work:
+
+```{r}
+# Import the Personality scores
+pers_df = read_delim(Personality_file, delim=" ")
+```
+
+```{r}
+head(pers_df)
+```
+
+## Import gender
+
+Gender info is stored in a separate `.csv` which is also delimited with a space. This file doesn't have column names, so we have to add them ourselves:
+
+```{r}
+gender_df = read.delim(Gender_file, head=FALSE, sep=" ", skip = 2)
+
+# Add column names
+names(gender_df) = c('vlogId', 'gender')
+
+
+head(gender_df)
+```
+
+## Merging the `gender` and `pers` dataframes
+
+Obviously, we want all the information in a single tidy data frame. While the builtin R function `merge()` can do that, the `tidyverse()` has a number of more versatile and consistent functions called `left_join`, `right_join`, `inner_join`, `outer_join`, and `anti_join`. We'll use `left_join` here to merge the gender and personality data frames:
+
+```{r}
+vlogger_df = left_join(gender_df, pers_df)
+head(vlogger_df) # VLOG8 has missing personality scores: those should be predicted
+```
+
+Note that some rows, like row 5, has `NA`'s for the personality scores. This is because this row corresponds to the vlogger with vlogId `VLOG8` is part of the test set. You still have to split `vlogger_df` into the training and test set, as shown below.
+
+We leave the `transcripts_df` data frame seperate for now, because you will first have to extract features from the transcripts first. Once you have those features in a tidy data frame, including a `vlogId` column, you can refer to this `left_join` example to merge your features with `vlogger_df` in one single tidy data frame.
+
+# 2. Feature extraction from transcript texts
+
+Here you will develop the code that extract features from the transcript texts using `tidytext`. Look at [Introducing Text Analytics](https://www.kaggle.com/datasniffer/introducing-text-analytics-personality-from-text) to see how you should do this.
+
+```{r}
+# Here goes YOUR CODE to compute the dataframe `transcript_features_df`
+
+
+
+
+#
+```
+
+Once you have computed features from the transcript texts and stored it in a data frame, merge it with the `vlogger_df` dataframe:
+
+```{r}
+# YOUR CODE to merge `vlogger_df` with `transcript_features_df`
+
+
+
+#
+```
+
+# 3. Predictive model
+
+Next you fit your predictive model(s). For instance, a linear regression model that only uses `gender` a feature might be:
+
+```{r}
+# Only for demonstration purposes:
+fit_mlm <- lm(cbind(Extr, Agr, Cons, Emot, Open) ~ gender, data = vlogger_df)
+fit_mlm
+```
+
+```{r}
+# YOUR CODE to fit your predictive model
+
+
+
+
+
+
+
+
+
+#
+```
+
+# 4. Making predictions on the test set
+
+For the competition we have to make **predictions** for the data in the **test set**
+
+- The predictions will be evaluated by computing the **Root Means Square Error**:
+    - $\displaystyle{RMSE =\sqrt{{1 \over 5n} \sum_{k \in \{cEXT, \ldots, cOPN\}} \sum_{i=1}^n (y_{ik} - \hat y_{ik})^2}}$
+    - Here 
+        - $y_{ik}$ is the observed value for vlogger $i$ 
+        - $\hat y_{ik}$ is your prediction for vlogger $i$
+        
+        
+You will have to take the following steps:
+
+1. Extract the test set from the `vlogger_df`
+2. Compute predictions for the test set using your model
+3. Write those predictions to file in the right format
+
+The following gives code for these steps in order.
+
+## 4.1 The test set
+
+The test set are those `vlogId` that are missing in the personality scores data frame `pers`. They are the rows in `vlogger_df` for which the personality scores are missing:
+
+```{r}
+testset_vloggers = vlogger_df %>% 
+    filter(is.na(Extr))
+
+head(testset_vloggers)
+```
+
+## 4.2 Predictions
+
+Continuing the example `fit_mlm` model above, for almost all models we will encounter use the `predict()` function.
+
+- `predict()` function exists for most model fit function like `lm`, `glm`, etc., that we encounter
+    - first argument should be a model object (`fit_mlm` in the example)
+    - second argument should be a data frame with the test set
+    - optionnaly, a third argument specifies type of response:
+      - for `lm` object only `type = "resp"`
+      - for `glm` object `type = "pred"` (linear predictor) or `type = "resp"` ('response' &rarr; probabilities)
+
+For example:
+
+```{r}
+pred_mlm = predict(fit_mlm, new = testset_vloggers)
+
+# Always check the output
+head(pred_mlm)
+```
+
+```{r}
+# compute output data frame
+testset_pred = testset_vloggers %>% 
+    mutate(
+        Extr = pred_mlm[,'Extr'], 
+        Agr  = pred_mlm[,'Agr' ],
+        Cons = pred_mlm[,'Cons'],
+        Emot = pred_mlm[,'Emot'],
+        Open = pred_mlm[,'Open']
+    ) %>%
+    select(vlogId, Extr:Open)
+
+head(testset_pred)
+```
+
+## 4.3 Writing predictions to file
+
+You need to upload your predictions in .csv file. However, there are multiple columns: `Extr`, `Agr`, `Cons`, `Emot`, `Open`, while Kaggle expects **long format**!
+
+What does long format look like?
+
+- Every prediction on a single line.
+- Columns `vlogId` and `pers_axis` to map prediction *vlogger ID* and *personality axis*.
+
+To achieve this, first `gather` the column values into a single `value` column, adding a `pers_axis` to indicate the column name:
+
+```{r}
+testset_pred_long  <- 
+  testset_pred %>% 
+  gather(pers_axis, value, -vlogId) %>%
+  arrange(vlogId, pers_axis)
+
+head(testset_pred_long)
+```
+
+According to the competition's [Evaluation instructions](https://www.kaggle.com/c/bda2019big5/overview/evaluation), Kaggle expects file with two colums: `Id` and `value`.
+  
+The [Evaluation instructions](https://www.kaggle.com/c/bda2019big5/overview/evaluation) specifies we need to encode the `Agr` prediction for `VLOG8` as `VLOG8_Agr` in the `Id` column. To achieve this use `unite()` function of `dplyr`.
+
+`unite()` take:
+
+- a data frame as its first argument (implicitely passed by the piping operator `%>%`)
+- the name of new column as its second argument (`Id` below)
+- all extra arguments (`vlogId` and `pers_axis` below) are concatenated with an underscore in between
+
+Then write the resulting data frame to a .csv file.
+
+```{r}
+# Obtain the right format for Kaggle
+testset_pred_final <- 
+  testset_pred_long %>%
+  unite(Id, vlogId, pers_axis) 
+
+# Check if we succeeded
+head(testset_pred_final)
+
+# Write to csv
+testset_pred_final %>%
+  write_csv(path = "predictions.csv")
+
+# Check if the file was written successfully.
+list.files()
+```
+
+Once you have clicked the <span style="background-color:#000000;color:white;padding:3px;border-radius:10px;padding-left:6px;padding-right:6px;">⟳ Save Version&nbsp;&nbsp;|&nbsp;&nbsp;0</span> button at the top left, and select the "Save & Run All (Commit)" option, go to the Viewer. There you will find your "predictions.csv" under Output. You'll also see a button there that allows you to submit your predictions with one click.
