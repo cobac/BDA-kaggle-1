@@ -213,7 +213,7 @@ output <- testset %>%
   gather(pers_axis, value, -vlogId) %>%
   arrange(vlogId, pers_axis) %>% 
   unite(Id, vlogId, pers_axis) %>%
-  write_csv(path = "predictions.csv") 
+  write_csv(file = "predictions.csv") 
 
 head(output)
 ```
