@@ -34,7 +34,7 @@ Personality_file <- directory_content[5]
 
 # 1. Import the data
 
-## 1.1 Importing transcripts
+## 1.1 Import transcripts
 
 
 ```{r}
@@ -144,9 +144,7 @@ i_we_df <- i_we_df %>%
 ```{r}
 all_words <- unique(words_df$word)
 
-word_lengths <- tibble(
-  word = all_words
-) %>%
+word_lengths <- tibble(word = all_words) %>%
   mutate(word_length = nchar(word))
 
 avg_word_length_df <- words_df %>%
@@ -156,7 +154,7 @@ avg_word_length_df <- words_df %>%
 
 ```
 
-# Merging all features into `vlogges_df`
+# Merge all features into `vlogges_df`
 
 ```{r}
 
