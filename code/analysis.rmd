@@ -231,13 +231,13 @@ sapply(summary(model), function(x) x$r.squared)
 
 - Print significant variables
 ```{r}
-getSigFeatures <- function(summ) {
+getSigFeatures <- function(summ, alpha) {
   tibble(as.data.frame(summ$coefficients)) %>%
     mutate(feature = rownames(summ$coefficients)) %>% 
-    filter(`Pr(>|t|)` < 0.05) %>%
+    filter(`Pr(>|t|)` < alpha) %>%
     select(feature)
 }
-sapply(summary(model), getSigFeatures)
+sapply(summary(model), function(x) getSigFeatures(x, 0.01))
 ```
 
 # Generating predictions
