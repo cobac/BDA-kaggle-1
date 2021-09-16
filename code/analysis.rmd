@@ -11,7 +11,7 @@ output: html_document
 
 ```{r}
 
-library(tidyverse) # metapackage with lots of helpful functions
+library(tidyverse) # Metapackage with lots of helpful functions
 library(tidytext)
 
 list.files(path = "../input/")
@@ -35,7 +35,6 @@ Personality_file <- directory_content[5]
 # Import the data
 
 ## Import transcripts
-
 
 ```{r}
 transcript_files <- list.files(path_to_transcripts, full.names = TRUE) 
@@ -102,13 +101,17 @@ words_df <- transcripts_df %>%
 head(words_df)
 ```
 
+- Load dictionary of stop words
+```{r}
+data(stop_words)
+```
+
 ## Helper variables
 - Total number of words
 ```{r}
 count_words <- words_df %>%
   count(vlogId) %>%
   rename(total_words = n)
-
 ```
 
 ## "I"/"We" relative frequency
@@ -153,14 +156,34 @@ avg_word_length_df <- words_df %>%
 
 ```
 
-# Merge all features into `vlogges_df`
+# Sentiment analysis
+
+
+## Overall sentiment average and variance
+
+```{r}
+afinn_dict <- get_sentiments("afinn")
+
+sentiment_df <- words_df %>%
+  inner_join(afinn_dict, by = "word") %>%
+  anti_join(stop_words, by = "word") %>% 
+  group_by(vlogId) %>%
+  summarize(sentiment_avg = mean(value),
+            sentiment_var = var(value))
+
+head(sentiment_df)
+```
+
+# Merge all features into `vlogger_df`
+
+- This is the list of features included in our models
 
 ```{r}
 
 vlogger_df <- left_join(gender_df, pers_df, by = "vlogId") %>%
   left_join(i_we_df, by = "vlogId") %>%
-  left_join(avg_word_length_df, by = "vlogId")
-
+  left_join(avg_word_length_df, by = "vlogId") %>%
+  left_join(sentiment_df, by = "vlogId")
 
 head(vlogger_df)
 ```
