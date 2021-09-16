@@ -70,7 +70,6 @@ transcripts_df %>%
 
 ## Import personality scores
 
-
 ```{r}
 # Import the Personality scores
 pers_df <- read_delim(Personality_file, delim=" ")
@@ -89,98 +88,134 @@ head(gender_df)
 ## Import audiovisual data
 ```{r}
 audiovisual_df <- read.delim(AudioVisual_file, head = TRUE, sep = " ")
-```
-
-
-## Merging the `gender` and `pers` dataframes
-
-- Initializing the main data frame with all the predictors that are going to be used in the analysis
-
-```{r}
-vlogger_df <- left_join(gender_df, pers_df)
-head(vlogger_df) # VLOG8 has missing personality scores: those should be predicted
+head(audiovisual_df)
 ```
 
 # 2. Feature extraction from transcript texts
 
+- Tokenize into words
+
 ```{r}
-# Here goes YOUR CODE to compute the dataframe `transcript_features_df`
+words_df <- transcripts_df %>% 
+  unnest_tokens(word, Text, token = 'words') %>% 
+  select(-filename)
+head(words_df)
+```
 
+## Helper variables
+- Total number of words
+```{r}
+count_words <- words_df %>%
+  count(vlogId) %>%
+  rename(total_words = n)
 
-
-
-#
 ```
 
 
+## "I"/"We" relative frequency
+
 ```{r}
-# YOUR CODE to merge `vlogger_df` with `transcript_features_df`
+count_i <- words_df %>%
+  filter(word == "i") %>%
+  count(vlogId) %>% 
+  rename(total_i = n)
+
+count_we <- words_df %>%
+  filter(word == "we") %>%
+  count(vlogId) %>% 
+  rename(total_we = n)
+
+i_we_df <- count_words %>% 
+  full_join(count_i,  by = "vlogId") %>%
+  full_join(count_we, by = "vlogId") %>%
+  replace_na(list(total_i = 0, total_we = 0)) %>%
+  mutate(
+    freq_i = total_i / total_words,
+    freq_we = total_we / total_words,
+    ) 
+
+head(i_we_df)
+i_we_df <- i_we_df %>% 
+  select(vlogId, freq_i, freq_we)
+```
+
+## Average word length
+
+```{r}
+all_words <- unique(words_df$word)
+
+word_lengths <- tibble(
+  word = all_words
+) %>%
+  mutate(word_length = nchar(word))
+
+avg_word_length_df <- words_df %>%
+  left_join(word_lengths, by = "word") %>%
+  group_by(vlogId) %>%
+  summarise(avg_word_length = mean(word_length))
+
+```
+
+# Merging all features into `vlogges_df`
+
+```{r}
+
+vlogger_df <- left_join(gender_df, pers_df, by = "vlogId") %>%
+  left_join(i_we_df, by = "vlogId") %>%
+  left_join(avg_word_length_df, by = "vlogId")
 
 
-
-#
+head(vlogger_df)
 ```
 
 # 3. Predictive model
 
-Next you fit your predictive model(s). For instance, a linear regression model that only uses `gender` a feature might be:
+- For now we are just using all features to predict all personality dimensions
+- We plan on using a different approach for the final submission
 
 ```{r}
-# Only for demonstration purposes:
-fit_mlm <- lm(cbind(Extr, Agr, Cons, Emot, Open) ~ gender, data = vlogger_df)
-fit_mlm
-```
-
-```{r}
-
-
-
+modeling_df <- vlogger_df %>%
+  select(-vlogId)
+model <- lm(cbind(Extr, Agr, Cons, Emot, Open) ~ ., data = modeling_df)
 ```
 
 # 4. Generating predictions
 
 ## 4.1 The test set
 
-
 ```{r}
-testset_vloggers <- vlogger_df %>% 
+testset <- vlogger_df %>% 
   filter(is.na(Extr))
 
-head(testset_vloggers)
+head(testset)
 ```
 
 ## 4.2 Predictions
 
 ```{r}
-pred_mlm <- predict(fit_mlm, newdata = testset_vloggers)
+predictions <- predict(model, newdata = testset)
 
 # Always check the output
-head(pred_mlm)
+head(predictions)
 ```
+
 
 ```{r}
 # compute output data frame
-testset_pred <- testset_vloggers %>% 
+output <- testset %>% 
   mutate(
-    Extr = pred_mlm[,'Extr'], 
-    Agr  = pred_mlm[,'Agr' ],
-    Cons = pred_mlm[,'Cons'],
-    Emot = pred_mlm[,'Emot'],
-    Open = pred_mlm[,'Open']
+    Extr = predictions[,'Extr'], 
+    Agr  = predictions[,'Agr' ],
+    Cons = predictions[,'Cons'],
+    Emot = predictions[,'Emot'],
+    Open = predictions[,'Open']
   ) %>%
-  select(vlogId, Extr:Open)
-
-head(testset_pred)
-```
-
-## 4.3 Writing predictions to file
-
-```{r}
-final_predictions <- 
-  testset_pred %>% 
+  select(vlogId, Extr:Open) %>% 
+  # Convert to the specified output format
   gather(pers_axis, value, -vlogId) %>%
   arrange(vlogId, pers_axis) %>% 
   unite(Id, vlogId, pers_axis) %>%
   write_csv(path = "predictions.csv") 
-head(final_predictions)
+
+head(output)
 ```
