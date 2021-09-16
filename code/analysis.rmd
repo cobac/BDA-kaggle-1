@@ -199,6 +199,11 @@ modeling_df <- vlogger_df %>%
 model <- lm(cbind(Extr, Agr, Cons, Emot, Open) ~ ., data = modeling_df)
 ```
 
+- Print R-squared
+```{r}
+sapply(summary(model), function(x) x$r.squared)
+```
+
 # Generating predictions
 
 ## The test set
