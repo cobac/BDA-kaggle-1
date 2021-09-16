@@ -203,7 +203,6 @@ head(swear_df)
 - This is the list of features included in our models
 
 ```{r}
-
 vlogger_df <- left_join(gender_df, pers_df, by = "vlogId") %>%
   left_join(i_we_df, by = "vlogId") %>%
   left_join(avg_word_length_df, by = "vlogId") %>%
@@ -215,7 +214,7 @@ head(vlogger_df)
 
 # Predictive model
 
-- For now we are just using all features to predict all personality dimensions
+- For now we are just using all features without interactions to predict all personality dimensions
 - We plan on using a different approach for the final submission
 
 ```{r}
@@ -227,6 +226,17 @@ model <- lm(cbind(Extr, Agr, Cons, Emot, Open) ~ ., data = modeling_df)
 - Print R-squared
 ```{r}
 sapply(summary(model), function(x) x$r.squared)
+```
+
+- Print significant variables
+```{r}
+getSigFeatures <- function(summ) {
+  tibble(as.data.frame(summ$coefficients)) %>%
+    mutate(feature = rownames(summ$coefficients)) %>% 
+    filter(`Pr(>|t|)` < 0.05) %>%
+    select(feature)
+}
+sapply(summary(model), getSigFeatures)
 ```
 
 # Generating predictions
