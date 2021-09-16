@@ -32,9 +32,9 @@ Gender_file      <- directory_content[4]
 Personality_file <- directory_content[5]
 ```
 
-# 1. Import the data
+# Import the data
 
-## 1.1 Import transcripts
+## Import transcripts
 
 
 ```{r}
@@ -91,7 +91,7 @@ audiovisual_df <- read.delim(AudioVisual_file, head = TRUE, sep = " ")
 head(audiovisual_df)
 ```
 
-# 2. Feature extraction from transcript texts
+# Feature extraction from transcript texts
 
 - Tokenize into words
 
@@ -110,7 +110,6 @@ count_words <- words_df %>%
   rename(total_words = n)
 
 ```
-
 
 ## "I"/"We" relative frequency
 
@@ -166,7 +165,7 @@ vlogger_df <- left_join(gender_df, pers_df, by = "vlogId") %>%
 head(vlogger_df)
 ```
 
-# 3. Predictive model
+# Predictive model
 
 - For now we are just using all features to predict all personality dimensions
 - We plan on using a different approach for the final submission
@@ -177,9 +176,9 @@ modeling_df <- vlogger_df %>%
 model <- lm(cbind(Extr, Agr, Cons, Emot, Open) ~ ., data = modeling_df)
 ```
 
-# 4. Generating predictions
+# Generating predictions
 
-## 4.1 The test set
+## The test set
 
 ```{r}
 testset <- vlogger_df %>% 
@@ -188,7 +187,7 @@ testset <- vlogger_df %>%
 head(testset)
 ```
 
-## 4.2 Predictions
+## Predictions
 
 ```{r}
 predictions <- predict(model, newdata = testset)
