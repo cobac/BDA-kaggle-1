@@ -119,6 +119,7 @@ count_words <- words_df %>%
 ```{r}
 count_i <- words_df %>%
   filter(word == "i" |
+           word == "i'm" |
            word == "me" |
            word == "my" |
            word == "mine" |
@@ -128,6 +129,7 @@ count_i <- words_df %>%
 
 count_we <- words_df %>%
   filter(word == "we" |
+           word == "we're" |
            word == "us" |
            word == "our" |
            word == "ours" |
