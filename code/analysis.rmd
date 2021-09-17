@@ -118,12 +118,20 @@ count_words <- words_df %>%
 
 ```{r}
 count_i <- words_df %>%
-  filter(word == "i") %>%
+  filter(word == "i" |
+           word == "me" |
+           word == "my" |
+           word == "mine" |
+           word == "myself") %>%
   count(vlogId) %>% 
   rename(total_i = n)
 
 count_we <- words_df %>%
-  filter(word == "we") %>%
+  filter(word == "we" |
+           word == "us" |
+           word == "our" |
+           word == "ours" |
+           word == "ourselves") %>%
   count(vlogId) %>% 
   rename(total_we = n)
 
