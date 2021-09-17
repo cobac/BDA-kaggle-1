@@ -235,7 +235,39 @@ sentiment_df <- words_df %>%
 head(sentiment_df)
 ```
 
-### 
+### Emotions analysis
+
+```{r}
+# nrc_dict <- get_sentiments("nrc") => FAILS
+load_nrc <- function() {
+  if (!file.exists('nrc.txt'))
+    download.file("https://www.dropbox.com/s/yo5o476zk8j5ujg/NRC-Emotion-Lexicon-Wordlevel-v0.92.txt?dl=1","nrc.txt")
+  nrc = read.table("nrc.txt", col.names=c('word','sentiment','applies'), stringsAsFactors = FALSE)
+  nrc %>% filter(applies==1) %>% select(-applies)
+}
+nrc_dict <- load_nrc() %>% 
+  # Filter out because we ussed afinn for valence 
+  filter(!sentiment %in% c("positive", "negative"))
+
+emotions_df <- words_df %>%
+  right_join(nrc_dict, by = "word") %>%
+  count(vlogId, sentiment) %>%
+  left_join(count_words, by = "vlogId") %>%
+  mutate(freq = n/total_words) %>%
+  select(-c(n, total_words)) %>%
+  pivot_wider(id_cols = vlogId, names_from = sentiment, values_from = freq) %>%
+  replace_na(list(anger = 0,
+                  anticipation = 0,
+                  disgust = 0,
+                  fear = 0,
+                  joy = 0,
+                  sadness = 0,
+                  surprise = 0,
+                  trust = 0))
+# Delete last row with trailling NA
+emotions_df <- emotions_df[-length(emotions_df$vlogId), ]
+head(emotions_df)
+```
 
 # Merge all features into `vlogger_df`
 
@@ -248,7 +280,8 @@ vlogger_df <- left_join(gender_df, pers_df, by = "vlogId") %>%
   left_join(avg_word_length_df, by = "vlogId") %>%
   left_join(negation_df, by = "vlogId") %>%
   left_join(sentiment_df, by = "vlogId") %>% 
-  left_join(swear_df, by = "vlogId")
+  left_join(swear_df, by = "vlogId") %>% 
+  left_join(emotions_df, by = "vlogId")
 
 head(vlogger_df)
 ```
