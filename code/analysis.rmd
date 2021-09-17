@@ -195,6 +195,25 @@ negation_df <- words_df %>%
 head(negation_df)
 ```
 
+## Filler words
+```{r}
+filler_words <- c("like", "look", "yeah", "nah", "well", "so", "anyway",
+                  "alright", "obviously", "actually", "basically", "literally",
+                  "er", "eh", "ehh",
+                  "oh",
+                  "um", "uhm", "uh", "huh",
+                  "hmm", "hm", "mmm" ) %>% tibble(word = .)
+
+filler_df <- words_df %>%
+  semi_join(filler_words, by = "word") %>%
+  count(vlogId) %>% 
+  full_join(count_words, by = "vlogId") %>%
+  mutate(filler_freq = n / total_words) %>%
+  replace_na(list(filler_freq = 0)) %>%
+  select(vlogId, filler_freq)
+
+```
+
 ## Swear words
 
 ```{r}
@@ -280,6 +299,7 @@ vlogger_df <- left_join(gender_df, pers_df, by = "vlogId") %>%
   left_join(avg_word_length_df, by = "vlogId") %>%
   left_join(negation_df, by = "vlogId") %>%
   left_join(sentiment_df, by = "vlogId") %>% 
+  left_join(filler_df, by = "vlogId") %>% 
   left_join(swear_df, by = "vlogId") %>% 
   left_join(emotions_df, by = "vlogId")
 
