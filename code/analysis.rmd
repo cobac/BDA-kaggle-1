@@ -277,7 +277,7 @@ getSigFeatures <- function(summ, alpha) {
     filter(`Pr(>|t|)` < alpha) %>%
     select(feature)
 }
-sapply(summary(model), function(x) getSigFeatures(x, 0.01))
+sapply(summary(model), function(x) getSigFeatures(x, 0.1))
 ```
 
 # Generating predictions
