@@ -50,16 +50,12 @@ head(vlogId)
 
 ```{r}
 transcripts_df <- tibble(
-    
   # vlogId connects each transcripts to a vlogger
   vlogId=vlogId,
-  
   # Read the transcript text from all file and store as a string
   Text = map_chr(transcript_files, ~ paste(readLines(.x), collapse = "\\n")), 
-  
   # `filename` keeps track of the specific video transcript
-  filename = transcript_files
-)
+  filename = transcript_files)
 ```
 
 ```{r}
@@ -80,7 +76,7 @@ head(pers_df)
 ```{r}
 gender_df <- read.delim(Gender_file, head=FALSE, sep=" ", skip = 1)
 # Add column names
-names(gender_df) = c('vlogId', 'gender')
+names(gender_df) = c("vlogId", "gender")
 head(gender_df)
 ```
 
@@ -96,7 +92,7 @@ head(audiovisual_df)
 
 ```{r}
 words_df <- transcripts_df %>% 
-  unnest_tokens(word, Text, token = 'words') %>% 
+  unnest_tokens(word, Text, token = "words") %>% 
   select(-filename)
 head(words_df)
 ```
@@ -141,10 +137,8 @@ i_we_df <- count_words %>%
   full_join(count_i,  by = "vlogId") %>%
   full_join(count_we, by = "vlogId") %>%
   replace_na(list(total_i = 0, total_we = 0)) %>%
-  mutate(
-    freq_i = total_i / total_words,
-    freq_we = total_we / total_words,
-    ) 
+  mutate(freq_i = total_i / total_words,
+         freq_we = total_we / total_words,) 
 
 head(i_we_df)
 i_we_df <- i_we_df %>% 
@@ -191,7 +185,7 @@ negation_df <- words_df %>%
   count(vlogId) %>%
   full_join(count_words, by = "vlogId") %>%
   replace_na(list(n = 0)) %>%
-  mutate(negation_freq = n/total_words) %>%
+  mutate(negation_freq = n / total_words) %>%
   select(vlogId, negation_freq)
 
 head(negation_df)
@@ -204,7 +198,8 @@ filler_words <- c("like", "look", "yeah", "nah", "well", "so", "anyway",
                   "er", "eh", "ehh",
                   "oh",
                   "um", "uhm", "uh", "huh",
-                  "hmm", "hm", "mmm" ) %>% tibble(word = .)
+                  "hmm", "hm", "mmm" ) %>%
+  tibble(word = .)
 
 filler_df <- words_df %>%
   semi_join(filler_words, by = "word") %>%
@@ -263,8 +258,8 @@ head(sentiment_df)
 load_nrc <- function() {
   if (!file.exists('nrc.txt'))
     download.file("https://www.dropbox.com/s/yo5o476zk8j5ujg/NRC-Emotion-Lexicon-Wordlevel-v0.92.txt?dl=1","nrc.txt")
-  nrc = read.table("nrc.txt", col.names=c('word','sentiment','applies'), stringsAsFactors = FALSE)
-  nrc %>% filter(applies==1) %>% select(-applies)
+  nrc = read.table("nrc.txt", col.names=c("word", "sentiment", "applies"), stringsAsFactors = FALSE)
+  nrc %>% filter(applies == 1) %>% select(-applies)
 }
 nrc_dict <- load_nrc() %>% 
   # Filter out because we ussed afinn for valence 
@@ -274,7 +269,7 @@ emotions_df <- words_df %>%
   right_join(nrc_dict, by = "word") %>%
   count(vlogId, sentiment) %>%
   left_join(count_words, by = "vlogId") %>%
-  mutate(freq = n/total_words) %>%
+  mutate(freq = n / total_words) %>%
   select(-c(n, total_words)) %>%
   pivot_wider(id_cols = vlogId, names_from = sentiment, values_from = freq) %>%
   replace_na(list(anger = 0,
@@ -295,15 +290,16 @@ head(emotions_df)
 - This is the list of features included in our models
 
 ```{r}
-vlogger_df <- left_join(gender_df, pers_df, by = "vlogId") %>%
-  left_join(audiovisual_df, by = "vlogId") %>%
-  left_join(i_we_df, by = "vlogId") %>%
-  left_join(avg_word_length_df, by = "vlogId") %>%
-  left_join(negation_df, by = "vlogId") %>%
-  left_join(sentiment_df, by = "vlogId") %>% 
-  left_join(filler_df, by = "vlogId") %>% 
-  left_join(swear_df, by = "vlogId") %>% 
-  left_join(emotions_df, by = "vlogId")
+vlogger_df <- left_join(
+  gender_df                    , pers_df, by = "vlogId") %>%
+  left_join(audiovisual_df     , by = "vlogId") %>%
+  left_join(i_we_df            , by = "vlogId") %>%
+  left_join(avg_word_length_df , by = "vlogId") %>%
+  left_join(negation_df        , by = "vlogId") %>%
+  left_join(sentiment_df       , by = "vlogId") %>% 
+  left_join(filler_df          , by = "vlogId") %>% 
+  left_join(swear_df           , by = "vlogId") %>% 
+  left_join(emotions_df        , by = "vlogId")
 
 head(vlogger_df)
 ```
