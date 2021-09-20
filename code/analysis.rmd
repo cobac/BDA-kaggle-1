@@ -240,7 +240,17 @@ head(swear_df)
 ### Overall sentiment average and variance
 
 ```{r}
-afinn_dict <- get_sentiments("afinn")
+# afinn_dict <- get_sentiments("afinn") => Fails interactively
+
+load_afinn <- function() {
+  if (!file.exists('afinn.txt'))
+    download.file("http://www2.imm.dtu.dk/pubdb/edoc/imm6010.zip","afinn.zip")
+  unzip("afinn.zip")
+  afinn <- read.delim("AFINN/AFINN-111.txt", sep="\t", col.names = c("word","score"), stringsAsFactors = FALSE) %>% rename(value = score)
+  return(afinn)
+}
+
+afinn_dict <- load_afinn()
 
 sentiment_df <- words_df %>%
   inner_join(afinn_dict, by = "word") %>%
