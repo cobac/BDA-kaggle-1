@@ -395,25 +395,103 @@ vlogger_df <- left_join(
   left_join(emotions_df             , by = "vlogId") %>%
   left_join(questions_df            , by = "vlogId") %>%
   left_join(avg_sentence_length_df  , by = "vlogId") %>%
-  left_join(interruptions_df               , by = "vlogId") 
+  left_join(interruptions_df        , by = "vlogId") 
   
 head(vlogger_df)
 ```
 
 # Predictive model
 
-- For now we are just using all features without interactions to predict all personality dimensions
-- We plan on using a different approach for the final submission
+```{r}
+test_df <- vlogger_df %>% 
+  filter(is.na(Extr))
+head(test_df)
+```
 
 ```{r}
 modeling_df <- vlogger_df %>%
+  setdiff(test_df) %>%
   select(-vlogId)
-model <- lm(cbind(Extr, Agr, Cons, Emot, Open) ~ ., data = modeling_df)
+head(modeling_df)
+```
+
+## Only audiovisual features
+
+```{r}
+modeling_av_df <- modeling_df %>%
+  select(gender:hogv.cogC)
+
+model_av <- lm(cbind(Extr, Agr, Cons, Emot, Open) ~ ., data = modeling_av_df)
+summary(model_av)
+```
+
+## Only features extracted from the transcripts
+
+```{r}
+modeling_text_df <- modeling_df %>%
+  select(-c(mean.pitch:hogv.cogC))
+
+model_text <- lm(cbind(Extr, Agr, Cons, Emot, Open) ~ ., data = modeling_text_df)
+summary(model_text)
+```
+
+## Audiovisual and transcript-based features combined
+
+```{r}
+model_both <- lm(cbind(Extr, Agr, Cons, Emot, Open) ~ ., data = modeling_df)
+summary(model_both)
+```
+## Step-wise feature selection
+
+```{r}
+# model_starting <- lm(cbind(Extr, Agr, Cons, Emot, Open) ~ 1, data = modeling_df)
+# model_full <- lm(cbind(Extr, Agr, Cons, Emot, Open) ~ ., data = modeling_df)
+# model <- step(model_starting, scope = list(lower = model_starting,
+#                                            upper = model_full),
+#               # Mixed step-wise selection 
+#               direction = "both",
+#               # Optimise by BIC
+#               k = log(404))
+
+pers_traits <- c("Extr", "Agr", "Cons", "Emot", "Open")
+
+model_starting <- list()
+for (i in 1:5){
+  # Generate formula of the null model
+  syntax <- as.formula(paste(pers_traits[i], "~", "1"))
+  model_starting[[i]] <- lm(syntax,
+                            data = modeling_df)
+}
+
+model_full <- list()
+for (i in 1:5){
+  other_traits <- pers_traits %>%
+     setdiff(pers_traits[i])
+   # Generate formula of the full model
+   syntax <- as.formula(paste(pers_traits[i], "~", "."))
+  # Remove other personality traits from the data frame
+  df <- modeling_df %>%
+    select(-all_of(other_traits))
+  model_full[[i]] <- lm(syntax,
+                        # There should not be any Nas
+                        data = df)
+}
+
+models <- list()
+ for (i in 1:5) {
+   models[[i]] <- step(model_starting[[i]], scope = list(lower = model_starting[[i]],
+                                                         upper = model_full[[i]]),
+                       # Mixed step-wise selection 
+                       direction = "both",
+                       # Optimise by BIC
+                       #                        k = log(404))
+                       k = 2)
+ }
 ```
 
 - Print R-squared
 ```{r}
-sapply(summary(model), function(x) x$r.squared)
+sapply(models, function(x) summary(x)$r.squared)
 ```
 
 - Print significant variables
@@ -424,36 +502,32 @@ getSigFeatures <- function(summ, alpha) {
     filter(`Pr(>|t|)` < alpha) %>%
     select(feature)
 }
-sapply(summary(model), function(x) getSigFeatures(x, 0.1))
+sapply(models, function(x) getSigFeatures(summary(x), 0.1))
 ```
 
 # Generating predictions
 
-## The test set
-
-```{r}
-testset <- vlogger_df %>% 
-  filter(is.na(Extr))
-head(testset)
-```
-
 ## Predictions
 
+- We generate the final predictions from the model with features selected step-wise.
+
 ```{r}
-predictions <- predict(model, newdata = testset)
-head(predictions)
+predictions <- list()
+for (i in 1:5){
+  predictions[[i]] <- predict(models[[i]], newdata = test_df)
+}
 ```
 
 
 ```{r}
 # Compute output data frame
-output <- testset %>% 
+output <- test_df %>% 
   mutate(
-    Extr = predictions[,'Extr'], 
-    Agr  = predictions[,'Agr' ],
-    Cons = predictions[,'Cons'],
-    Emot = predictions[,'Emot'],
-    Open = predictions[,'Open']
+     Extr = predictions[[1]], 
+     Agr  = predictions[[2]],
+     Cons = predictions[[3]],
+     Emot = predictions[[4]],
+     Open = predictions[[5]]
   ) %>%
   select(vlogId, Extr:Open) %>% 
   # Convert to the specified output format
