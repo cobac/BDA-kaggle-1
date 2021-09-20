@@ -209,6 +209,7 @@ filler_df <- words_df %>%
   replace_na(list(filler_freq = 0)) %>%
   select(vlogId, filler_freq)
 
+head(filler_df)
 ```
 
 ## Swear words
