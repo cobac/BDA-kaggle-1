@@ -372,7 +372,7 @@ output <- testset %>%
   ) %>%
   select(vlogId, Extr:Open) %>% 
   # Convert to the specified output format
-  gather(pers_axis, value, -vlogId) %>%
+  gather(pers_axis, Expected, -vlogId) %>%
   arrange(vlogId, pers_axis) %>% 
   unite(Id, vlogId, pers_axis) %>%
   write_csv(file = "predictions.csv") 
