@@ -253,8 +253,9 @@ load_afinn <- function() {
 afinn_dict <- load_afinn()
 
 sentiment_df <- words_df %>%
-  inner_join(afinn_dict, by = "word") %>%
   anti_join(stop_words, by = "word") %>% 
+  left_join(afinn_dict, by = "word") %>% 
+  replace_na(list(value = 0)) %>% 
   group_by(vlogId) %>%
   summarize(sentiment_avg = mean(value),
             sentiment_var = var(value))
