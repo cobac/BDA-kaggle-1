@@ -4,13 +4,14 @@ author:
  - David Coba
  - Sophie Elting
  - Enrico Erler
-output: html_document
+output:
+  html_document:
+    toc: true
 ---
 
 # Setup environment 
 
 ```{r}
-
 library(tidyverse) # Metapackage with lots of helpful functions
 library(tidytext)
 
@@ -32,9 +33,9 @@ Gender_file      <- directory_content[4]
 Personality_file <- directory_content[5]
 ```
 
-# Import the data
+## Import the data
 
-## Import transcripts
+### Import transcripts
 
 ```{r}
 transcript_files <- list.files(path_to_transcripts, full.names = TRUE) 
@@ -63,7 +64,7 @@ transcripts_df %>%
   head(2)
 ```
 
-## Import personality scores
+### Import personality scores
 
 ```{r}
 # Import the Personality scores
@@ -71,7 +72,7 @@ pers_df <- read_delim(Personality_file, delim=" ")
 head(pers_df)
 ```
 
-## Import gender
+### Import gender
 
 ```{r}
 gender_df <- read.delim(Gender_file, head=FALSE, sep=" ", skip = 1)
@@ -80,15 +81,20 @@ names(gender_df) = c("vlogId", "gender")
 head(gender_df)
 ```
 
-## Import audiovisual data
+### Import audiovisual data
+
 ```{r}
 audiovisual_df <- read.delim(AudioVisual_file, head = TRUE, sep = " ")
 head(audiovisual_df)
 ```
 
-# Feature extraction from transcript texts
+# Feature extraction from the transcripts
 
-- Tokenize into words
+## Word-based features
+
+### Setup
+
+- Tokenize transcripts into words.
 
 ```{r}
 words_df <- transcripts_df %>% 
@@ -98,19 +104,20 @@ head(words_df)
 ```
 
 - Load dictionary of stop words
+
 ```{r}
 data(stop_words)
 ```
 
-## Helper variables
-- Total number of words
+### Total number of words
+
 ```{r}
 count_words <- words_df %>%
   count(vlogId) %>%
   rename(total_words = n)
 ```
 
-## "I"/"We" relative frequency
+### "I"/"We" relative frequency
 
 ```{r}
 count_i <- words_df %>%
@@ -145,7 +152,7 @@ i_we_df <- i_we_df %>%
   select(vlogId, freq_i, freq_we)
 ```
 
-## Average word length
+### Average word length
 
 ```{r}
 avg_word_length_df <- words_df %>% 
@@ -156,7 +163,8 @@ avg_word_length_df <- words_df %>%
 head(avg_word_length_df)
 ```
 
-## Negations
+### Negations
+
 ```{r}
 negation_url <- "https://www.grammarly.com/blog/negatives/"
 negation_words <- readLines(negation_url)[63:89] %>%
@@ -182,7 +190,8 @@ negation_df <- words_df %>%
 head(negation_df)
 ```
 
-## Filler words
+### Filler words
+
 ```{r}
 filler_words <- c("like", "look", "yeah", "nah", "well", "so", "anyway",
                   "alright", "obviously", "actually", "basically", "literally",
@@ -203,7 +212,7 @@ filler_df <- words_df %>%
 head(filler_df)
 ```
 
-## Swear words
+### Swear words
 
 ```{r}
 # Download dictionary of swear words
@@ -226,12 +235,12 @@ swear_df <- words_df %>%
 head(swear_df)
 ```
 
-## Sentiment analysis
+### Sentiment analysis
 
-### Overall sentiment average and variance
+#### Overall sentiment average and variance
 
 ```{r}
-# afinn_dict <- get_sentiments("afinn") => Fails interactively
+# afinn_dict <- get_sentiments("afinn") => Fails when run non-interactively
 
 load_afinn <- function() {
   if (!file.exists('afinn.txt'))
@@ -253,16 +262,18 @@ sentiment_df <- words_df %>%
 head(sentiment_df)
 ```
 
-### Emotions analysis
+#### NRC emotions analysis
 
 ```{r}
 # nrc_dict <- get_sentiments("nrc") => FAILS
+
 load_nrc <- function() {
   if (!file.exists('nrc.txt'))
     download.file("https://www.dropbox.com/s/yo5o476zk8j5ujg/NRC-Emotion-Lexicon-Wordlevel-v0.92.txt?dl=1","nrc.txt")
   nrc = read.table("nrc.txt", col.names=c("word", "sentiment", "applies"), stringsAsFactors = FALSE)
   nrc %>% filter(applies == 1) %>% select(-applies)
 }
+
 nrc_dict <- load_nrc() %>% 
   # Filter out because we ussed afinn for valence 
   filter(!sentiment %in% c("positive", "negative"))
@@ -287,12 +298,11 @@ emotions_df <- emotions_df[-length(emotions_df$vlogId), ]
 head(emotions_df)
 ```
 
+## Sentence-based features
 
-# Stolen & new features
+### Setup
 
-## Tokenize by sentences
-
-- 'stolen' from Group 2
+- Tokenize transcripts into sentences.
 
 ```{r}
 sentences_df <- transcripts_df %>%
@@ -300,19 +310,20 @@ sentences_df <- transcripts_df %>%
     select(-filename)
 
 head(sentences_df)
-
 ```
 
-## Frequency of questions
+### Frequency of questions
 
-- 'stolen' from Group 2
+- Feature originally implemented by Group 2
 
-Count the number of sentences per vlogId
+- Count the number of sentences per vlogId
 ```{r}
 count_sentences <- sentences_df %>% 
   group_by(vlogId) %>%
   count() %>%
   rename(total_sentences = n)
+
+head(count_sentences)
 ```
 
 Count the number of questions per vlogId
@@ -322,11 +333,13 @@ count_questions <- sentences_df %>%
     group_by(vlogId) %>%
     filter(sentence_end == "?") %>%
     count() %>%
-    rename(total_questions = n)
-```
-Calculate frequency of questions
-```{r}
+  rename(total_questions = n)
 
+head(count_questions)
+```
+
+Calculate relative frequency of questions
+```{r}
 questions_df <- count_sentences %>% 
   full_join(count_questions,  by = "vlogId") %>%
   replace_na(list(total_sentences = 0, total_questions = 0)) %>%
@@ -336,10 +349,7 @@ questions_df <- count_sentences %>%
 head(questions_df)
 ```
 
-
-## Average sentence length (in number of words)
-
-- this is a newly added feature and not 'stolen'
+### Average sentence length (in number of words)
 
 ```{r}
 avg_sentence_length_df <- sentences_df %>% 
@@ -350,18 +360,20 @@ avg_sentence_length_df <- sentences_df %>%
 head(avg_sentence_length_df)
 ```
 
-## Ratio of pauses ("-" in transcript) to sentences
-
-- idea 'stolen' from Group 2
+### Ratio of interruptions 
+- Feature originally implemented by Group 2
+- Sentences interrupted by a short phrase
+  - The transcripts use n-dashes ("Sentence -- phrase."), two n-dashes ("Sentence -- phrase -- sentence.") and m-dashes ("---").
+  - We have decided that just counting the number of plain texts dashes ("-") is a good approximate with a distribution close to the real interruptions.
 
 ```{r}
-pauses_df <- transcripts_df %>%
-    group_by(vlogId) %>%
-    full_join(count_sentences) %>%
-    mutate(ratio_pauses = str_count(Text, pattern = "-") / total_sentences) %>%
-    select(-c(filename,Text,total_sentences))
+interruptions_df <- transcripts_df %>%
+  group_by(vlogId) %>%
+  full_join(count_sentences) %>%
+  mutate(ratio_interruptions = str_count(Text, pattern = "-") / total_sentences) %>%
+  select(-c(filename,Text,total_sentences))
 
-head(pauses_df)
+head(interruptions_df)
 ```
 
 # Merge all features into `vlogger_df`
@@ -372,6 +384,7 @@ head(pauses_df)
 vlogger_df <- left_join(
   gender_df, pers_df                , by = "vlogId") %>%
   left_join(audiovisual_df          , by = "vlogId") %>%
+  left_join(count_words             , by = "vlogId") %>%
   left_join(i_we_df                 , by = "vlogId") %>%
   left_join(avg_word_length_df      , by = "vlogId") %>%
   left_join(negation_df             , by = "vlogId") %>%
@@ -381,7 +394,7 @@ vlogger_df <- left_join(
   left_join(emotions_df             , by = "vlogId") %>%
   left_join(questions_df            , by = "vlogId") %>%
   left_join(avg_sentence_length_df  , by = "vlogId") %>%
-  left_join(pauses_df               , by = "vlogId") 
+  left_join(interruptions_df               , by = "vlogId") 
   
 head(vlogger_df)
 ```
