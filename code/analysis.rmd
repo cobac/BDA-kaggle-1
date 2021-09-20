@@ -463,3 +463,11 @@ output <- testset %>%
 
 head(output)
 ```
+
+# Division of labor
+
+For the submission Enrico and Sophie implemented the sentiment analysis of the transcripts and Coba coded the rest of the features. The three of used worked together on a videconference to clean up the code and generate the first set of predictions.
+
+For the final submission Enrico was responsible for gathering interesting features from other groups. Sophia coded the showcase of different models and improved the state of the descriptive text of the report. Coba implemented the step-wise feature selection for the final model. The three of use worked together on a videoconference to clean up the final report.
+
+
