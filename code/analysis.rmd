@@ -92,7 +92,7 @@ head(audiovisual_df)
 
 ```{r}
 words_df <- transcripts_df %>% 
-  unnest_tokens(word, Text, token = "words") %>% 
+  unnest_tokens(output = word, input = Text, token = "words") %>% 
   select(-filename)
 head(words_df)
 ```
@@ -148,17 +148,8 @@ i_we_df <- i_we_df %>%
 ## Average word length
 
 ```{r}
-all_words <- unique(words_df$word)
-
-word_lengths <- tibble(word = all_words) %>%
-  mutate(word_length = nchar(word))
-
-head(word_lengths)
-```
-
-```{r}
-avg_word_length_df <- words_df %>%
-  left_join(word_lengths, by = "word") %>%
+avg_word_length_df <- words_df %>% 
+  mutate(word_length = nchar(word)) %>%
   group_by(vlogId) %>%
   summarise(avg_word_length = mean(word_length))
 
@@ -296,22 +287,102 @@ emotions_df <- emotions_df[-length(emotions_df$vlogId), ]
 head(emotions_df)
 ```
 
+
+# Stolen & new features
+
+## Tokenize by sentences
+
+- 'stolen' from Group 2
+
+```{r}
+sentences_df <- transcripts_df %>%
+    unnest_tokens(output = sentence, input = Text, token = 'sentences') %>%
+    select(-filename)
+
+head(sentences_df)
+
+```
+
+## Frequency of questions
+
+- 'stolen' from Group 2
+
+Count the number of sentences per vlogId
+```{r}
+count_sentences <- sentences_df %>% 
+  group_by(vlogId) %>%
+  count() %>%
+  rename(total_sentences = n)
+```
+
+Count the number of questions per vlogId
+``` {r}
+count_questions <- sentences_df %>%  
+    mutate(sentence_end = str_sub(sentence, start = -1)) %>%
+    group_by(vlogId) %>%
+    filter(sentence_end == "?") %>%
+    count() %>%
+    rename(total_questions = n)
+```
+Calculate frequency of questions
+```{r}
+
+questions_df <- count_sentences %>% 
+  full_join(count_questions,  by = "vlogId") %>%
+  replace_na(list(total_sentences = 0, total_questions = 0)) %>%
+  mutate(freq_questions = total_questions / total_sentences) %>%
+  select(-total_sentences,-total_questions)
+
+head(questions_df)
+```
+
+
+## Average sentence length (in number of words)
+
+- this is a newly added feature and not 'stolen'
+
+```{r}
+avg_sentence_length_df <- sentences_df %>% 
+  mutate(word_count = str_count(sentence, pattern = "\\w+")) %>%
+  group_by(vlogId) %>%
+  summarise(average_words_per_sentence = mean(word_count))
+
+head(avg_sentence_length_df)
+```
+
+## Ratio of pauses ("-" in transcript) to sentences
+
+- idea 'stolen' from Group 2
+
+```{r}
+pauses_df <- transcripts_df %>%
+    group_by(vlogId) %>%
+    full_join(count_sentences) %>%
+    mutate(ratio_pauses = str_count(Text, pattern = "-") / total_sentences) %>%
+    select(-c(filename,Text,total_sentences))
+
+head(pauses_df)
+```
+
 # Merge all features into `vlogger_df`
 
 - This is the list of features included in our models
 
 ```{r}
 vlogger_df <- left_join(
-  gender_df                    , pers_df, by = "vlogId") %>%
-  left_join(audiovisual_df     , by = "vlogId") %>%
-  left_join(i_we_df            , by = "vlogId") %>%
-  left_join(avg_word_length_df , by = "vlogId") %>%
-  left_join(negation_df        , by = "vlogId") %>%
-  left_join(sentiment_df       , by = "vlogId") %>% 
-  left_join(filler_df          , by = "vlogId") %>% 
-  left_join(swear_df           , by = "vlogId") %>% 
-  left_join(emotions_df        , by = "vlogId")
-
+  gender_df, pers_df                , by = "vlogId") %>%
+  left_join(audiovisual_df          , by = "vlogId") %>%
+  left_join(i_we_df                 , by = "vlogId") %>%
+  left_join(avg_word_length_df      , by = "vlogId") %>%
+  left_join(negation_df             , by = "vlogId") %>%
+  left_join(sentiment_df            , by = "vlogId") %>% 
+  left_join(filler_df               , by = "vlogId") %>% 
+  left_join(swear_df                , by = "vlogId") %>% 
+  left_join(emotions_df             , by = "vlogId") %>%
+  left_join(questions_df            , by = "vlogId") %>%
+  left_join(avg_sentence_length_df  , by = "vlogId") %>%
+  left_join(pauses_df               , by = "vlogId") 
+  
 head(vlogger_df)
 ```
 
